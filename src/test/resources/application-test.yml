@@ -1,0 +1,9 @@
+spring:
+  jpa:
+    show-sql: false
+
+koreaexim:
+  auth-key: test-key
+
+scheduler:
+  enabled: false
