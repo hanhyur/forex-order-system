@@ -2,6 +2,7 @@ package com.forex.order.exchangerate.controller;
 
 import com.forex.order.common.ApiResponse;
 import com.forex.order.common.Currency;
+import com.forex.order.exchangerate.dto.ExchangeRateListResponse;
 import com.forex.order.exchangerate.dto.ExchangeRateResponse;
 import com.forex.order.exchangerate.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +22,9 @@ public class ExchangeRateController {
     private final ExchangeRateService exchangeRateService;
 
     @GetMapping("/latest")
-    public ResponseEntity<ApiResponse<List<ExchangeRateResponse>>> getLatestAll() {
+    public ResponseEntity<ApiResponse<ExchangeRateListResponse>> getLatestAll() {
         List<ExchangeRateResponse> rates = exchangeRateService.getLatestAll();
-        return ResponseEntity.ok(ApiResponse.ok(rates));
+        return ResponseEntity.ok(ApiResponse.ok(new ExchangeRateListResponse(rates)));
     }
 
     @GetMapping("/latest/{currency}")

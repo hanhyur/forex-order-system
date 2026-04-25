@@ -1,6 +1,7 @@
 package com.forex.order.order.controller;
 
 import com.forex.order.common.ApiResponse;
+import com.forex.order.order.dto.OrderListResponse;
 import com.forex.order.order.dto.OrderRequest;
 import com.forex.order.order.dto.OrderResponse;
 import com.forex.order.order.service.OrderService;
@@ -30,8 +31,8 @@ public class OrderController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrders() {
+    public ResponseEntity<ApiResponse<OrderListResponse>> getOrders() {
         List<OrderResponse> orders = orderService.getOrders();
-        return ResponseEntity.ok(ApiResponse.ok(orders));
+        return ResponseEntity.ok(ApiResponse.ok(new OrderListResponse(orders)));
     }
 }

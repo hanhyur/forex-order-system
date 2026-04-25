@@ -39,6 +39,13 @@ class ExchangeRateServiceTest {
     @InjectMocks
     private ExchangeRateService exchangeRateService;
 
+    @BeforeEach
+    void setUp() throws Exception {
+        var field = ExchangeRateService.class.getDeclaredField("randomVariationEnabled");
+        field.setAccessible(true);
+        field.set(exchangeRateService, false);
+    }
+
     @Nested
     @DisplayName("환율 수집 및 저장")
     class FetchAndSaveRates {
