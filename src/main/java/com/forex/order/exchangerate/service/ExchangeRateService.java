@@ -11,12 +11,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,8 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class ExchangeRateService {
 
-    private static final BigDecimal BUY_SPREAD_RATE = new BigDecimal("1.05");
-    private static final BigDecimal SELL_SPREAD_RATE = new BigDecimal("0.95");
     private static final int MAX_RETRY_DAYS = 7;
     private static final Set<Currency> TARGET_CURRENCIES = Set.of(
             Currency.USD, Currency.JPY, Currency.CNY, Currency.EUR
@@ -35,10 +31,12 @@ public class ExchangeRateService {
 
     private final ExchangeRateHistoryRepository repository;
     private final KoreaEximClient koreaEximClient;
+    private final ExchangeRatePersistService persistService;
     private final ConcurrentHashMap<Currency, ExchangeRateHistory> latestRates = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void warmUpCache() {
+        latestRates.clear();
         for (Currency currency : TARGET_CURRENCIES) {
             repository.findTopByCurrencyOrderByDateTimeDesc(currency)
                     .ifPresent(rate -> latestRates.put(currency, rate));
@@ -53,7 +51,9 @@ public class ExchangeRateService {
             List<KoreaEximApiResponse> responses = koreaEximClient.fetchRates(date);
 
             if (!responses.isEmpty()) {
-                processAndSave(responses);
+                List<ExchangeRateHistory> saved = persistService.processAndSave(responses);
+                saved.forEach(entity -> latestRates.put(entity.getCurrency(), entity));
+                log.info("환율 수집 완료: {}개 통화 갱신", saved.size());
                 return;
             }
 
@@ -70,6 +70,7 @@ public class ExchangeRateService {
 
         return latestRates.values().stream()
                 .map(this::toResponse)
+                .sorted(Comparator.comparing(ExchangeRateResponse::getCurrency))
                 .toList();
     }
 
@@ -87,54 +88,6 @@ public class ExchangeRateService {
             throw new RateNotFoundException(currency + " 환율 정보를 찾을 수 없습니다");
         }
         return rate;
-    }
-
-    @Transactional
-    protected void processAndSave(List<KoreaEximApiResponse> responses) {
-        for (KoreaEximApiResponse response : responses) {
-            Currency currency = parseCurrency(response.getCurUnit());
-            if (currency == null || !TARGET_CURRENCIES.contains(currency)) {
-                continue;
-            }
-
-            BigDecimal tradeStanRate = parseRate(response.getDealBasR());
-            BigDecimal buyRate = tradeStanRate.multiply(BUY_SPREAD_RATE)
-                    .setScale(2, RoundingMode.HALF_UP);
-            BigDecimal sellRate = tradeStanRate.multiply(SELL_SPREAD_RATE)
-                    .setScale(2, RoundingMode.HALF_UP);
-
-            ExchangeRateHistory entity = ExchangeRateHistory.builder()
-                    .currency(currency)
-                    .tradeStanRate(tradeStanRate)
-                    .buyRate(buyRate)
-                    .sellRate(sellRate)
-                    .dateTime(LocalDateTime.now())
-                    .build();
-
-            repository.save(entity);
-            latestRates.put(currency, entity);
-        }
-
-        log.info("환율 수집 완료: {}개 통화 갱신", latestRates.size());
-    }
-
-    private Currency parseCurrency(String curUnit) {
-        if (curUnit == null) {
-            return null;
-        }
-
-        String code = curUnit.replaceAll("\\(.*\\)", "").trim();
-
-        try {
-            return Currency.valueOf(code);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private BigDecimal parseRate(String rateString) {
-        String cleaned = rateString.replace(",", "");
-        return new BigDecimal(cleaned);
     }
 
     private LocalDate adjustToBusinessDay(LocalDate date) {
