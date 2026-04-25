@@ -34,6 +34,7 @@ class ExchangeRateControllerTest {
     @BeforeEach
     void setUp() {
         repository.deleteAll();
+        exchangeRateService.warmUpCache();
     }
 
     @Test

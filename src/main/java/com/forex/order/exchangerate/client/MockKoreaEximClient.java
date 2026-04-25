@@ -39,26 +39,6 @@ public class MockKoreaEximClient implements KoreaEximClient {
     }
 
     private KoreaEximApiResponse createResponse(String curUnit, BigDecimal rate) {
-        try {
-            KoreaEximApiResponse response = new KoreaEximApiResponse();
-
-            setField(response, "curUnit", curUnit);
-            setField(response, "dealBasR", formatRate(rate));
-            setField(response, "result", 1);
-
-            return response;
-        } catch (Exception e) {
-            throw new RuntimeException("Mock 응답 생성 실패", e);
-        }
-    }
-
-    private void setField(Object obj, String fieldName, Object value) throws Exception {
-        var field = obj.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(obj, value);
-    }
-
-    private String formatRate(BigDecimal rate) {
-        return rate.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        return new KoreaEximApiResponse(curUnit, null, rate.toPlainString(), 1);
     }
 }

@@ -44,6 +44,7 @@ class OrderControllerTest {
     void setUp() {
         orderRepository.deleteAll();
         rateRepository.deleteAll();
+        exchangeRateService.warmUpCache();
     }
 
     @Test
