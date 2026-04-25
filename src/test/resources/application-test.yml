@@ -7,6 +7,3 @@ koreaexim:
 
 scheduler:
   enabled: false
-
-exchange-rate:
-  random-variation: false
