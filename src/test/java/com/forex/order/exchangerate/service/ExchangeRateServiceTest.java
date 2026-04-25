@@ -7,7 +7,6 @@ import com.forex.order.exchangerate.dto.ExchangeRateResponse;
 import com.forex.order.exchangerate.dto.KoreaEximApiResponse;
 import com.forex.order.exchangerate.entity.ExchangeRateHistory;
 import com.forex.order.exchangerate.repository.ExchangeRateHistoryRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -38,13 +37,6 @@ class ExchangeRateServiceTest {
 
     @InjectMocks
     private ExchangeRateService exchangeRateService;
-
-    @BeforeEach
-    void setUp() throws Exception {
-        var field = ExchangeRateService.class.getDeclaredField("randomVariationEnabled");
-        field.setAccessible(true);
-        field.set(exchangeRateService, false);
-    }
 
     @Nested
     @DisplayName("환율 수집 및 저장")
