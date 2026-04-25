@@ -1,7 +1,6 @@
 package com.forex.order.order.service;
 
 import com.forex.order.common.Currency;
-import com.forex.order.common.OrderType;
 import com.forex.order.common.exception.InvalidCurrencyException;
 import com.forex.order.common.exception.RateNotAvailableException;
 import com.forex.order.common.exception.RateNotFoundException;
@@ -41,26 +40,26 @@ class OrderServiceTest {
     private OrderService orderService;
 
     @Nested
-    @DisplayName("매수 주문 (BUY: KRW -> 외화)")
+    @DisplayName("매수 주문 (KRW -> 외화)")
     class BuyOrder {
 
         @Test
-        @DisplayName("USD 100 매수 시 buyRate를 적용하여 KRW 금액을 계산한다")
+        @DisplayName("USD 200 매수 시 buyRate를 적용하여 KRW 금액을 계산한다")
         void calculatesKrwWithBuyRate() {
-            // Arrange: 100 USD, buyRate 1412.78 → KRW = 100 * 1412.78 / 1 = 141278
-            givenRate(Currency.USD, "1412.78", "1278.23");
+            // Arrange: 200 USD, buyRate 1480.43 → KRW = 200 * 1480.43 / 1 = 296086
+            givenRate(Currency.USD, "1480.43", "1474.47");
             givenSavedOrder();
-            OrderRequest request = new OrderRequest(OrderType.BUY, Currency.USD, new BigDecimal("100"));
+            OrderRequest request = new OrderRequest(new BigDecimal("200"), Currency.KRW, Currency.USD);
 
             // Act
             OrderResponse response = orderService.createOrder(request);
 
             // Assert
             assertThat(response.getFromCurrency()).isEqualTo("KRW");
-            assertThat(response.getFromAmount()).isEqualByComparingTo("141278");
+            assertThat(response.getFromAmount()).isEqualByComparingTo("296086");
             assertThat(response.getToCurrency()).isEqualTo("USD");
-            assertThat(response.getToAmount()).isEqualByComparingTo("100");
-            assertThat(response.getTradeRate()).isEqualByComparingTo("1412.78");
+            assertThat(response.getToAmount()).isEqualByComparingTo("200");
+            assertThat(response.getTradeRate()).isEqualByComparingTo("1480.43");
         }
 
         @Test
@@ -69,7 +68,7 @@ class OrderServiceTest {
             // Arrange: 33 USD, buyRate 1412.78 → 33 * 1412.78 = 46621.74 → FLOOR → 46621
             givenRate(Currency.USD, "1412.78", "1278.23");
             givenSavedOrder();
-            OrderRequest request = new OrderRequest(OrderType.BUY, Currency.USD, new BigDecimal("33"));
+            OrderRequest request = new OrderRequest(new BigDecimal("33"), Currency.KRW, Currency.USD);
 
             // Act
             OrderResponse response = orderService.createOrder(request);
@@ -84,7 +83,7 @@ class OrderServiceTest {
             // Arrange: 1000 JPY, buyRate 963.31 → 1000 * 963.31 / 100 = 9633.1 → FLOOR → 9633
             givenRate(Currency.JPY, "963.31", "871.57");
             givenSavedOrder();
-            OrderRequest request = new OrderRequest(OrderType.BUY, Currency.JPY, new BigDecimal("1000"));
+            OrderRequest request = new OrderRequest(new BigDecimal("1000"), Currency.KRW, Currency.JPY);
 
             // Act
             OrderResponse response = orderService.createOrder(request);
@@ -95,26 +94,26 @@ class OrderServiceTest {
     }
 
     @Nested
-    @DisplayName("매도 주문 (SELL: 외화 -> KRW)")
+    @DisplayName("매도 주문 (외화 -> KRW)")
     class SellOrder {
 
         @Test
-        @DisplayName("USD 100 매도 시 sellRate를 적용하여 KRW 금액을 계산한다")
+        @DisplayName("USD 133 매도 시 sellRate를 적용하여 KRW 금액을 계산한다")
         void calculatesKrwWithSellRate() {
-            // Arrange: 100 USD, sellRate 1278.23 → KRW = 100 * 1278.23 / 1 = 127823
-            givenRate(Currency.USD, "1412.78", "1278.23");
+            // Arrange: 133 USD, sellRate 1474.47 → KRW = 133 * 1474.47 / 1 = 196104.51 → FLOOR → 196104
+            givenRate(Currency.USD, "1480.43", "1474.47");
             givenSavedOrder();
-            OrderRequest request = new OrderRequest(OrderType.SELL, Currency.USD, new BigDecimal("100"));
+            OrderRequest request = new OrderRequest(new BigDecimal("133"), Currency.USD, Currency.KRW);
 
             // Act
             OrderResponse response = orderService.createOrder(request);
 
             // Assert
             assertThat(response.getFromCurrency()).isEqualTo("USD");
-            assertThat(response.getFromAmount()).isEqualByComparingTo("100");
+            assertThat(response.getFromAmount()).isEqualByComparingTo("133");
             assertThat(response.getToCurrency()).isEqualTo("KRW");
-            assertThat(response.getToAmount()).isEqualByComparingTo("127823");
-            assertThat(response.getTradeRate()).isEqualByComparingTo("1278.23");
+            assertThat(response.getToAmount()).isEqualByComparingTo("196104");
+            assertThat(response.getTradeRate()).isEqualByComparingTo("1474.47");
         }
 
         @Test
@@ -123,7 +122,7 @@ class OrderServiceTest {
             // Arrange: 5000 JPY, sellRate 871.57 → 5000 * 871.57 / 100 = 43578.5 → FLOOR → 43578
             givenRate(Currency.JPY, "963.31", "871.57");
             givenSavedOrder();
-            OrderRequest request = new OrderRequest(OrderType.SELL, Currency.JPY, new BigDecimal("5000"));
+            OrderRequest request = new OrderRequest(new BigDecimal("5000"), Currency.JPY, Currency.KRW);
 
             // Act
             OrderResponse response = orderService.createOrder(request);
@@ -138,13 +137,22 @@ class OrderServiceTest {
     class Validation {
 
         @Test
-        @DisplayName("KRW 통화로 주문하면 InvalidCurrencyException을 던진다")
-        void rejectsKrwOrder() {
-            OrderRequest request = new OrderRequest(OrderType.BUY, Currency.KRW, new BigDecimal("100"));
+        @DisplayName("KRW가 포함되지 않은 통화쌍은 거부한다")
+        void rejectsNonKrwPair() {
+            OrderRequest request = new OrderRequest(new BigDecimal("100"), Currency.USD, Currency.EUR);
 
             assertThatThrownBy(() -> orderService.createOrder(request))
                     .isInstanceOf(InvalidCurrencyException.class)
                     .hasMessageContaining("KRW");
+        }
+
+        @Test
+        @DisplayName("같은 통화끼리 주문하면 거부한다")
+        void rejectsSameCurrency() {
+            OrderRequest request = new OrderRequest(new BigDecimal("100"), Currency.KRW, Currency.KRW);
+
+            assertThatThrownBy(() -> orderService.createOrder(request))
+                    .isInstanceOf(InvalidCurrencyException.class);
         }
 
         @Test
@@ -153,7 +161,7 @@ class OrderServiceTest {
             given(exchangeRateService.getLatestRate(Currency.USD))
                     .willThrow(new RateNotFoundException("USD 환율 없음"));
 
-            OrderRequest request = new OrderRequest(OrderType.BUY, Currency.USD, new BigDecimal("100"));
+            OrderRequest request = new OrderRequest(new BigDecimal("100"), Currency.KRW, Currency.USD);
 
             assertThatThrownBy(() -> orderService.createOrder(request))
                     .isInstanceOf(RateNotAvailableException.class);
@@ -179,11 +187,11 @@ class OrderServiceTest {
         void returnsOrderResponses() {
             ForexOrder order = ForexOrder.builder()
                     .id(1L)
-                    .fromAmount(new BigDecimal("141278"))
+                    .fromAmount(new BigDecimal("296086"))
                     .fromCurrency(Currency.KRW)
-                    .toAmount(new BigDecimal("100"))
+                    .toAmount(new BigDecimal("200"))
                     .toCurrency(Currency.USD)
-                    .tradeRate(new BigDecimal("1412.78"))
+                    .tradeRate(new BigDecimal("1480.43"))
                     .dateTime(LocalDateTime.now())
                     .build();
 

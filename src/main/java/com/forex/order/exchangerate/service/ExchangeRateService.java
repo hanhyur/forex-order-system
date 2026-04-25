@@ -19,6 +19,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,9 +34,14 @@ public class ExchangeRateService {
     private static final Set<Currency> TARGET_CURRENCIES = Set.of(
             Currency.USD, Currency.JPY, Currency.CNY, Currency.EUR
     );
+    private static final BigDecimal RANDOM_VARIATION_RANGE = new BigDecimal("0.02");
+    private final Random random = new Random();
 
     private final ExchangeRateHistoryRepository repository;
     private final KoreaEximClient koreaEximClient;
+
+    @org.springframework.beans.factory.annotation.Value("${exchange-rate.random-variation:true}")
+    private boolean randomVariationEnabled = true;
     private final ConcurrentHashMap<Currency, ExchangeRateHistory> latestRates = new ConcurrentHashMap<>();
 
     @PostConstruct
@@ -98,7 +104,7 @@ public class ExchangeRateService {
                 continue;
             }
 
-            BigDecimal tradeStanRate = parseRate(response.getDealBasR());
+            BigDecimal tradeStanRate = applyRandomVariation(parseRate(response.getDealBasR()));
             BigDecimal buyRate = tradeStanRate.multiply(BUY_SPREAD_RATE)
                     .setScale(2, RoundingMode.HALF_UP);
             BigDecimal sellRate = tradeStanRate.multiply(SELL_SPREAD_RATE)
@@ -117,6 +123,15 @@ public class ExchangeRateService {
         }
 
         log.info("환율 수집 완료: {}개 통화 갱신", latestRates.size());
+    }
+
+    private BigDecimal applyRandomVariation(BigDecimal rate) {
+        if (!randomVariationEnabled) {
+            return rate;
+        }
+        double variation = (random.nextDouble() * 2 - 1) * RANDOM_VARIATION_RANGE.doubleValue();
+        BigDecimal factor = BigDecimal.ONE.add(BigDecimal.valueOf(variation));
+        return rate.multiply(factor).setScale(2, RoundingMode.HALF_UP);
     }
 
     private Currency parseCurrency(String curUnit) {

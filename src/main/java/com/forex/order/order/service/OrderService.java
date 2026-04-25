@@ -1,7 +1,6 @@
 package com.forex.order.order.service;
 
 import com.forex.order.common.Currency;
-import com.forex.order.common.OrderType;
 import com.forex.order.common.exception.InvalidCurrencyException;
 import com.forex.order.common.exception.RateNotAvailableException;
 import com.forex.order.exchangerate.entity.ExchangeRateHistory;
@@ -28,25 +27,25 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
-        Currency currency = request.getCurrency();
-        validateNotKrw(currency);
+        validateCurrencyPair(request.getFromCurrency(), request.getToCurrency());
+
+        boolean isBuy = request.getFromCurrency() == Currency.KRW;
+        Currency foreignCurrency = isBuy ? request.getToCurrency() : request.getFromCurrency();
 
         ExchangeRateHistory rate;
         try {
-            rate = exchangeRateService.getLatestRate(currency);
+            rate = exchangeRateService.getLatestRate(foreignCurrency);
         } catch (Exception e) {
-            throw new RateNotAvailableException(currency + " 통화의 환율이 준비되지 않았습니다");
+            throw new RateNotAvailableException(foreignCurrency + " 통화의 환율이 준비되지 않았습니다");
         }
 
-        BigDecimal tradeRate = (request.getOrderType() == OrderType.BUY)
-                ? rate.getBuyRate()
-                : rate.getSellRate();
+        BigDecimal tradeRate = isBuy ? rate.getBuyRate() : rate.getSellRate();
 
         BigDecimal krwAmount = request.getForexAmount()
                 .multiply(tradeRate)
-                .divide(currency.getUnit(), 0, RoundingMode.FLOOR);
+                .divide(foreignCurrency.getUnit(), 0, RoundingMode.FLOOR);
 
-        ForexOrder order = buildOrder(request, currency, tradeRate, krwAmount);
+        ForexOrder order = buildOrder(request, tradeRate, krwAmount, isBuy);
         ForexOrder saved = orderRepository.save(order);
 
         return toResponse(saved);
@@ -59,20 +58,30 @@ public class OrderService {
                 .toList();
     }
 
-    private void validateNotKrw(Currency currency) {
-        if (currency == Currency.KRW) {
-            throw new InvalidCurrencyException("KRW는 외화 주문 대상이 아닙니다");
+    private void validateCurrencyPair(Currency from, Currency to) {
+        if (from == to) {
+            throw new InvalidCurrencyException("출발 통화와 도착 통화가 같을 수 없습니다");
+        }
+
+        boolean hasKrw = from == Currency.KRW || to == Currency.KRW;
+        if (!hasKrw) {
+            throw new InvalidCurrencyException("모든 주문은 KRW를 기준으로 진행해야 합니다");
+        }
+
+        Currency foreignCurrency = (from == Currency.KRW) ? to : from;
+        if (foreignCurrency == Currency.KRW) {
+            throw new InvalidCurrencyException("외화 통화를 지정해야 합니다");
         }
     }
 
-    private ForexOrder buildOrder(OrderRequest request, Currency currency,
-                                  BigDecimal tradeRate, BigDecimal krwAmount) {
-        if (request.getOrderType() == OrderType.BUY) {
+    private ForexOrder buildOrder(OrderRequest request, BigDecimal tradeRate,
+                                  BigDecimal krwAmount, boolean isBuy) {
+        if (isBuy) {
             return ForexOrder.builder()
                     .fromAmount(krwAmount)
                     .fromCurrency(Currency.KRW)
                     .toAmount(request.getForexAmount())
-                    .toCurrency(currency)
+                    .toCurrency(request.getToCurrency())
                     .tradeRate(tradeRate)
                     .dateTime(LocalDateTime.now())
                     .build();
@@ -80,7 +89,7 @@ public class OrderService {
 
         return ForexOrder.builder()
                 .fromAmount(request.getForexAmount())
-                .fromCurrency(currency)
+                .fromCurrency(request.getFromCurrency())
                 .toAmount(krwAmount)
                 .toCurrency(Currency.KRW)
                 .tradeRate(tradeRate)
