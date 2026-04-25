@@ -3,6 +3,7 @@ package com.forex.order.order.service;
 import com.forex.order.common.Currency;
 import com.forex.order.common.exception.InvalidCurrencyException;
 import com.forex.order.common.exception.RateNotAvailableException;
+import com.forex.order.common.exception.RateNotFoundException;
 import com.forex.order.exchangerate.entity.ExchangeRateHistory;
 import com.forex.order.exchangerate.service.ExchangeRateService;
 import com.forex.order.order.dto.OrderRequest;
@@ -35,7 +36,7 @@ public class OrderService {
         ExchangeRateHistory rate;
         try {
             rate = exchangeRateService.getLatestRate(foreignCurrency);
-        } catch (Exception e) {
+        } catch (RateNotFoundException e) {
             throw new RateNotAvailableException(foreignCurrency + " 통화의 환율이 준비되지 않았습니다");
         }
 
