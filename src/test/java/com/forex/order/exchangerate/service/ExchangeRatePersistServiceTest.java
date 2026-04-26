@@ -88,6 +88,19 @@ class ExchangeRatePersistServiceTest {
     }
 
     @Test
+    @DisplayName("한국수출입은행 API의 CNH를 CNY로 매핑하여 저장한다")
+    void mapsCnhToCny() {
+        given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        List<ExchangeRateHistory> result = persistService.processAndSave(
+                List.of(new KoreaEximApiResponse("CNH", null, "195.50", 1)));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getCurrency()).isEqualTo(Currency.CNY);
+        assertThat(result.get(0).getTradeStanRate()).isEqualByComparingTo("195.50");
+    }
+
+    @Test
     @DisplayName("대상 통화(USD, JPY, CNY, EUR)만 저장한다")
     void savesOnlyTargetCurrencies() {
         given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
