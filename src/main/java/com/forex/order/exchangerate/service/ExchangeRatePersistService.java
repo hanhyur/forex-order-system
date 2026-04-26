@@ -14,6 +14,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +23,9 @@ public class ExchangeRatePersistService {
 
     private static final BigDecimal BUY_SPREAD_RATE = new BigDecimal("1.05");
     private static final BigDecimal SELL_SPREAD_RATE = new BigDecimal("0.95");
+    private static final Map<String, String> CURRENCY_ALIAS = Map.of(
+            "CNH", "CNY"
+    );
 
     private final ExchangeRateHistoryRepository repository;
 
@@ -60,6 +64,7 @@ public class ExchangeRatePersistService {
             return null;
         }
         String code = curUnit.replaceAll("\\(.*\\)", "").trim();
+        code = CURRENCY_ALIAS.getOrDefault(code, code);
         try {
             return Currency.valueOf(code);
         } catch (IllegalArgumentException e) {
