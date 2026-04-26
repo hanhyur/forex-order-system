@@ -46,7 +46,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("INVALID_CURRENCY", "지원하지 않는 통화입니다"));
+                .body(ApiResponse.error("BAD_REQUEST", "잘못된 요청 파라미터입니다"));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

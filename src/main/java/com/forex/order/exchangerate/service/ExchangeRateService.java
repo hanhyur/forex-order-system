@@ -1,6 +1,7 @@
 package com.forex.order.exchangerate.service;
 
 import com.forex.order.common.Currency;
+import com.forex.order.common.exception.InvalidCurrencyException;
 import com.forex.order.common.exception.RateNotFoundException;
 import com.forex.order.exchangerate.client.KoreaEximClient;
 import com.forex.order.exchangerate.dto.ExchangeRateResponse;
@@ -14,10 +15,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,9 +28,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExchangeRateService {
 
     private static final int MAX_RETRY_DAYS = 7;
-    private static final Set<Currency> TARGET_CURRENCIES = Set.of(
-            Currency.USD, Currency.JPY, Currency.CNY, Currency.EUR
-    );
+    private static final Set<Currency> FOREX_CURRENCIES = Arrays.stream(Currency.values())
+            .filter(Currency::isForex)
+            .collect(Collectors.toUnmodifiableSet());
 
     private final ExchangeRateHistoryRepository repository;
     private final KoreaEximClient koreaEximClient;
@@ -37,7 +40,7 @@ public class ExchangeRateService {
     @PostConstruct
     public void warmUpCache() {
         latestRates.clear();
-        for (Currency currency : TARGET_CURRENCIES) {
+        for (Currency currency : FOREX_CURRENCIES) {
             repository.findTopByCurrencyOrderByDateTimeDesc(currency)
                     .ifPresent(rate -> latestRates.put(currency, rate));
         }
@@ -75,6 +78,7 @@ public class ExchangeRateService {
     }
 
     public ExchangeRateResponse getLatest(Currency currency) {
+        validateForexCurrency(currency);
         ExchangeRateHistory rate = latestRates.get(currency);
         if (rate == null) {
             throw new RateNotFoundException(currency + " 환율 정보를 찾을 수 없습니다");
@@ -88,6 +92,12 @@ public class ExchangeRateService {
             throw new RateNotFoundException(currency + " 환율 정보를 찾을 수 없습니다");
         }
         return rate;
+    }
+
+    private void validateForexCurrency(Currency currency) {
+        if (!currency.isForex()) {
+            throw new InvalidCurrencyException(currency + "는 환율 조회 대상 통화가 아닙니다");
+        }
     }
 
     private LocalDate adjustToBusinessDay(LocalDate date) {
