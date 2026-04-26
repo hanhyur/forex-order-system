@@ -14,7 +14,6 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -23,9 +22,6 @@ public class ExchangeRatePersistService {
 
     private static final BigDecimal BUY_SPREAD_RATE = new BigDecimal("1.05");
     private static final BigDecimal SELL_SPREAD_RATE = new BigDecimal("0.95");
-    private static final Set<Currency> TARGET_CURRENCIES = Set.of(
-            Currency.USD, Currency.JPY, Currency.CNY, Currency.EUR
-    );
 
     private final ExchangeRateHistoryRepository repository;
 
@@ -35,7 +31,7 @@ public class ExchangeRatePersistService {
 
         for (KoreaEximApiResponse response : responses) {
             Currency currency = parseCurrency(response.getCurUnit());
-            if (currency == null || !TARGET_CURRENCIES.contains(currency)) {
+            if (currency == null || !currency.isForex()) {
                 continue;
             }
 

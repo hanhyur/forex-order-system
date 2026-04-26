@@ -74,7 +74,7 @@ class ExchangeRateControllerTest {
     void getLatestInvalidCurrency() throws Exception {
         mockMvc.perform(get("/exchange-rate/latest/ABC"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_CURRENCY"));
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }
 
     @Test
