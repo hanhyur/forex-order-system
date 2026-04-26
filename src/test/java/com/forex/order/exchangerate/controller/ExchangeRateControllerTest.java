@@ -78,6 +78,14 @@ class ExchangeRateControllerTest {
     }
 
     @Test
+    @DisplayName("GET /exchange-rate/latest/KRW - 기준 통화(KRW)는 조회 대상이 아니므로 400을 반환한다")
+    void getLatestKrwReturns400() throws Exception {
+        mockMvc.perform(get("/exchange-rate/latest/KRW"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CURRENCY"));
+    }
+
+    @Test
     @DisplayName("GET /exchange-rate/latest - 데이터 없으면 404를 반환한다")
     void getLatestEmpty() throws Exception {
         mockMvc.perform(get("/exchange-rate/latest"))
